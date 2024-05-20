@@ -1,0 +1,36 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from bs4 import BeautifulSoup
+
+def scrap_web(url: str):
+    """Returns all clickable buttons from a website."""
+    print("Scrapping from Website...")
+    print(url)
+
+    options = Options()
+    options.add_argument('--headless')
+    # Initialize the Chrome WebDriver with the specified options
+    driver = webdriver.Chrome(options=options)
+
+    driver.get(url)
+    driver.implicitly_wait(10)
+
+    # Attempt to find buttons by different elements commonly used for buttons
+    button_elements = driver.find_elements(By.CSS_SELECTOR, "button, a.btn, a.button, input[type='button'], input[type='submit']")
+    buttons = []
+
+    for button in button_elements:
+        # Creating a simple dictionary to hold button's text and part of its outer HTML for identification
+        buttons.append({'text': button.text, 'html': button.get_attribute('outerHTML')[:100]})
+
+    driver.quit()
+
+    print("Scrapping done") 
+    return buttons
+
+# Example usage:
+url = "https://psgitech.ac.in"
+buttons = scrap_web(url)
+for button in buttons:
+    print(button)
