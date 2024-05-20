@@ -1,0 +1,55 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+url = "https://psgitech.ac.in/"
+
+# Initialize WebDriver with DevTools Protocol enabled
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_experimental_option('w3c', False)
+driver = webdriver.Chrome(options=chrome_options)
+
+# Open your target webpage
+driver.get(url)
+driver.implicitly_wait(10)
+
+# Enable DevTools Protocol
+driver.execute_cdp_cmd("Page.enable", {})
+
+# JavaScript to find all clickable elements and those with click event listeners
+script = """
+return Array.from(document.querySelectorAll(
+    `button, 
+    input[type='button'], 
+    input[type='submit'], 
+    input[type='reset'], 
+    a[role='button'], 
+    [onclick], 
+    [role='button']`
+)).concat(
+    Array.from(document.querySelectorAll('*'))
+    .map(el => {
+        const listeners = getEventListeners(el);
+        return listeners && listeners.click ? el : null;
+    }).filter(el => el !== null)
+);
+"""
+
+# Execute the script and get the elements
+elements_with_listeners = driver.execute_cdp_cmd("Runtime.evaluate", {
+    "expression": script,
+    "returnByValue": True
+})
+
+# Extract the elements from the result
+clickable_elements = elements_with_listeners['result']['value']
+
+# Print the tag names and text/content of the clickable elements
+for element in clickable_elements:
+    tag_name = element['tagName']
+    text = element['innerText']
+    print(f'Tag: {tag_name}, Text: {text}')
+
+# Close the WebDriver
+driver.quit()
+

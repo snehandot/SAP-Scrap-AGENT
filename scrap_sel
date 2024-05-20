@@ -42,8 +42,8 @@ def scrap_web(url: str):
     print("Scrapping from Website...")
     print(url)
 
-    options = Options()
-    options.add_argument('--headless') 
+   # options = Options()
+    #options.add_argument('--headless') 
     # options.addArguments("--no-sandbox")
    # options.add_argument('--remote-debugging-pipe')
 
@@ -52,15 +52,16 @@ def scrap_web(url: str):
 
 
 # Initialize the Chrome WebDriver with the specified options
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome()
+    #driver = webdriver.Chrome(options=options)
 
     driver.get(url)
     driver.implicitly_wait(10)
     page_source = driver.page_source
     driver.quit()
-
-    soup = BeautifulSoup(page_source, 'html.parser')
-    text = soup.get_text()
+    print(type(page_source)) 
+   # soup = BeautifulSoup(page_source, 'html.parser')
+   # text = soup.get_text()
 
     #print("CONTENT: ", text)
     print("Scrapping done")
@@ -77,7 +78,7 @@ def scrap_web(url: str):
 
 
 #    else:
-    return text
+    return page_source
 
 
 def summary(content):
