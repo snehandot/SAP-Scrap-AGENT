@@ -1,54 +1,105 @@
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import json
 
-url = "https://psgitech.ac.in/"
+# Set up the WebDriver (example uses Chrome)
+driver = webdriver.Chrome()
 
-# Initialize WebDriver with DevTools Protocol enabled
-chrome_options = webdriver.ChromeOptions()
-chrome_options.add_experimental_option('w3c', False)
-driver = webdriver.Chrome(options=chrome_options)
+# Open the webpage
+driver.get('https://www.gucci.com/us/en/')
 
-# Open your target webpage
-driver.get(url)
-driver.implicitly_wait(10)
+# Wait for the page to fully load (adjust the wait conditions based on your page's content)
+WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.TAG_NAME, 'button')))
 
-# Enable DevTools Protocol
-driver.execute_cdp_cmd("Page.enable", {})
+# Optionally interact with the page to ensure all dynamic content is loaded
+# (e.g., scrolling, clicking on buttons to reveal more buttons, etc.)
+# Example: Scroll to the bottom of the page to load more content
+driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.TAG_NAME, 'button')))
 
-# JavaScript to find all clickable elements and those with click event listeners
+# Function to get visible text from an element, including nested elements
+def get_visible_text(element):
+    return ''.join(element.text.split()).strip()
+
+# Find all buttons
+buttons = driver.find_elements(By.TAG_NAME, "button")
+buttons += driver.find_elements(By.CSS_SELECTOR, "input[type='button']")
+buttons += driver.find_elements(By.CSS_SELECTOR, "input[type='submit']")
+
+# JavaScript to detect event listeners and visible text, including inline handlers
 script = """
-return Array.from(document.querySelectorAll(
-    `button, 
-    input[type='button'], 
-    input[type='submit'], 
-    input[type='reset'], 
-    a[role='button'], 
-    [onclick], 
-    [role='button']`
-)).concat(
-    Array.from(document.querySelectorAll('*'))
-    .map(el => {
-        const listeners = getEventListeners(el);
-        return listeners && listeners.click ? el : null;
-    }).filter(el => el !== null)
-);
+function getEventListeners(element) {
+    var listeners = [];
+    var allEvents = Object.keys(window).filter(function(k) { return k.indexOf("on") === 0 });
+    allEvents.forEach(function(eventName) {
+        var listenersForElement = getEventListenersForElement(element, eventName.slice(2));
+        if (listenersForElement.length > 0) {
+            listeners.push({event: eventName.slice(2), listeners: listenersForElement});
+        }
+    });
+    return listeners;
+}
+
+function getEventListenersForElement(element, eventName) {
+    var listeners = [];
+    if (typeof jQuery !== 'undefined') {
+        var events = jQuery._data(element, "events");
+        if (events && events[eventName]) {
+            events[eventName].forEach(function(event) {
+                listeners.push(event.handler.toString());
+            });
+        }
+    }
+    if (element["on" + eventName]) {
+        listeners.push(element["on" + eventName].toString());
+    }
+    return listeners;
+}
+
+// Function to check for inline event handlers
+function getInlineEventHandlers(element) {
+    var inlineHandlers = [];
+    var allEvents = Object.keys(window).filter(function(k) { return k.indexOf("on") === 0 });
+    allEvents.forEach(function(event) {
+        if (element.hasAttribute(event)) {
+            inlineHandlers.push({event: event.slice(2), handler: element.getAttribute(event)});
+        }
+    });
+    return inlineHandlers;
+}
+
+// Function to get visible text from an element, including nested elements
+function getVisibleText(element) {
+    return Array.from(element.childNodes)
+        .filter(node => node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE)
+        .map(node => node.nodeType === Node.TEXT_NODE ? node.nodeValue : node.innerText)
+        .join(' ')
+        .trim();
+}
+
+var elements = arguments[0];
+var result = [];
+elements.forEach(function(element) {
+    var elementInfo = {
+        tagName: element.tagName,
+        outerHTML: element.outerHTML,
+        visibleText: getVisibleText(element),
+        listeners: getEventListeners(element),
+        inlineHandlers: getInlineEventHandlers(element)
+    };
+    result.push(elementInfo);
+});
+return result;
 """
 
-# Execute the script and get the elements
-elements_with_listeners = driver.execute_cdp_cmd("Runtime.evaluate", {
-    "expression": script,
-    "returnByValue": True
-})
+# Get event listeners and visible text for each button
+button_elements = [button for button in buttons]
+button_info = driver.execute_script(script, button_elements)
 
-# Extract the elements from the result
-clickable_elements = elements_with_listeners['result']['value']
-
-# Print the tag names and text/content of the clickable elements
-for element in clickable_elements:
-    tag_name = element['tagName']
-    text = element['innerText']
-    print(f'Tag: {tag_name}, Text: {text}')
+# Print out the information
+print(json.dumps(button_info, indent=4))
 
 # Close the WebDriver
 driver.quit()
