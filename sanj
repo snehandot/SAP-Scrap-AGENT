@@ -9,7 +9,7 @@ import time
 driver = webdriver.Chrome()
 
 # Open the webpage
-driver.get('https://foodnextdoor.in/')
+driver.get('https://www.myntra.com/')
 
 # Wait for the initial page to fully load
 WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.TAG_NAME, 'button')))
