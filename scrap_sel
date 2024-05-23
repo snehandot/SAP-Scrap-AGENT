@@ -60,8 +60,8 @@ def scrap_web(url: str):
     page_source = driver.page_source
     driver.quit()
     print(type(page_source)) 
-   # soup = BeautifulSoup(page_source, 'html.parser')
-   # text = soup.get_text()
+    soup = BeautifulSoup(page_source, 'html.parser')
+    text = soup.get_text()
 
     #print("CONTENT: ", text)
     print("Scrapping done")
@@ -78,7 +78,7 @@ def scrap_web(url: str):
 
 
 #    else:
-    return page_source
+    return text
 
 
 def summary(content):

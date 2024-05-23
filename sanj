@@ -2,7 +2,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import json
 import time
 
 # Set up the WebDriver (example uses Chrome)
@@ -12,7 +11,7 @@ driver = webdriver.Chrome()
 driver.get('https://www.myntra.com/')
 
 # Wait for the initial page to fully load
-WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.TAG_NAME, 'button')))
+WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'button')))
 
 # Function to scroll to the bottom of the page and wait for new content to load
 def scroll_and_load(driver, wait_time=2):
@@ -98,24 +97,10 @@ elements = []
 for tag in tags:
     elements.extend(driver.find_elements(By.TAG_NAME, tag))
 
-# Check for iframes and switch context if necessary
-def switch_to_iframes_and_collect_elements(driver, tags):
-    collected_elements = []
-    iframes = driver.find_elements(By.TAG_NAME, 'iframe')
-    for iframe in iframes:
-        driver.switch_to.frame(iframe)
-        for tag in tags:
-            collected_elements.extend(driver.find_elements(By.TAG_NAME, tag))
-        driver.switch_to.default_content()
-    return collected_elements
-
-# Collect elements from main context and iframes
-elements.extend(switch_to_iframes_and_collect_elements(driver, tags))
-
 # Check for shadow roots and collect elements
 def collect_shadow_dom_elements(driver, tags):
     shadow_elements = []
-    shadow_hosts = driver.execute_script('return document.querySelectorAll("*")')
+    shadow_hosts = driver.execute_script('return Array.from(document.querySelectorAll("*")).filter(el => el.shadowRoot)')
     for host in shadow_hosts:
         try:
             shadow_root = driver.execute_script('return arguments[0].shadowRoot', host)
@@ -131,8 +116,61 @@ elements.extend(collect_shadow_dom_elements(driver, tags))
 # Get event listeners and visible text for each element
 elements_info = driver.execute_script(script, elements)
 
-# Print out the information
-print(json.dumps(elements_info, indent=4))
+while True:
+    # Filter and display all button elements to the user
+    interactive_elements = [el for el in elements_info if el['tagName'].lower() in ['button', 'a', 'div', 'span'] and el['visibleText'] and len(el['visibleText']) <= 20]
+
+    print("Interactive elements found on the page:")
+    for idx, element in enumerate(interactive_elements):
+        print(f"{idx + 1}: {element['visibleText']}")
+
+    # Get user input to choose an element to click
+    try:
+        choice = int(input("Enter the number of the element you want to click (or 0 to exit): ")) - 1
+        if choice == -1:
+            break
+
+        if 0 <= choice < len(interactive_elements):
+            chosen_element = interactive_elements[choice]
+            # Find the element by XPath
+            element_xpath = f"//*[contains(text(), '{chosen_element['visibleText']}')]"
+            element_to_click = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, element_xpath))
+            )
+
+            # Enhanced clicking logic
+            try:
+                if element_to_click.tag_name == 'input' and element_to_click.get_attribute('type') in ['text', 'search']:
+                    search_query = input(f"Enter your search query for {chosen_element['visibleText']}: ")
+                    element_to_click.send_keys(search_query)
+                    element_to_click.submit()
+                else:
+                    # Scroll the element into view and click it using JavaScript
+                    driver.execute_script("arguments[0].scrollIntoView({ behavior: 'smooth', block: 'center' });", element_to_click)
+                    driver.execute_script("arguments[0].click();", element_to_click)
+            except Exception as e:
+                print(f"Error clicking the element directly: {e}")
+                # Fallback to using JavaScript for clicking
+                driver.execute_script("arguments[0].click();", element_to_click)
+            
+            # Wait for the new page to load
+            time.sleep(5)  # Adjust the sleep time as necessary
+
+            # Print the current page URL
+            print(f"Current page URL: {driver.current_url}")
+
+            # Refresh the elements information after navigation
+            elements = []
+            for tag in tags:
+                elements.extend(driver.find_elements(By.TAG_NAME, tag))
+            elements.extend(collect_shadow_dom_elements(driver, tags))
+            elements_info = driver.execute_script(script, elements)
+        else:
+            print("Invalid choice.")
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 # Close the WebDriver
 driver.quit()
