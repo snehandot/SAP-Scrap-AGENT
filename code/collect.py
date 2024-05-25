@@ -9,7 +9,6 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     JavascriptException
 )
-
 import time
 
 def scroll_and_load(driver, wait_time=2):
@@ -85,7 +84,10 @@ def click_element(driver, element):
 
     return False
 
-def interact_with_page(driver):
+def interact_with_page():
+    #driver = webdriver.Chrome()
+    #url = 'https://www.apple.com'
+    #driver.get(url)
     scroll_and_load(driver, wait_time=4)
     clickable_elements = collect_clickable_elements(driver)
     elements_info = get_elements_info(driver, clickable_elements)
@@ -105,7 +107,7 @@ def interact_with_page(driver):
     # Display clickable elements and ask the user to select one
     print("Available clickable elements:")
     for index, element_info in enumerate(unique_elements_info):
-        print(f"{index}: {element_info['visibleText']} (Tag: {element_info['tagName']})")
+        print(f"{element_info['visibleText']},{index}",end="--")
 
     selected_index = int(input("Enter the index of the element you want to click: "))
 
@@ -132,10 +134,10 @@ def interact_with_page(driver):
 # Main interaction loop
 start_time = time.time()
 driver = webdriver.Chrome()
-url = 'https://www.myntra.com'
+url = 'https://www.reliancedigital.in/'
 driver.get(url)
 
-while interact_with_page(driver):
+while interact_with_page():
     pass
 
 # Close the WebDriver

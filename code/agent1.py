@@ -1,16 +1,32 @@
+import os
+import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
-    StaleElementReferenceException, 
+    StaleElementReferenceException,
     ElementClickInterceptedException,
     ElementNotInteractableException,
     NoSuchElementException,
     JavascriptException
 )
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import ToolExecutor
+from typing import TypedDict, Annotated, Sequence
+import operator
+from langchain_core.messages import BaseMessage, HumanMessage
+from langgraph.prebuilt import ToolInvocation
+from langchain_core.messages import ToolMessage
+from langgraph.graph import StateGraph
+from langchain_core.tools import tool
 
-import time
+
+# Environment setup
+os.environ["OPENAI_API_KEY"] = "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"
+os.environ["LANGCHAIN_API_KEY"] = "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"
+
+
 
 def scroll_and_load(driver, wait_time=2):
     last_height = driver.execute_script("return document.body.scrollHeight")
@@ -22,21 +38,25 @@ def scroll_and_load(driver, wait_time=2):
             break
         last_height = new_height
 
+
 def find_elements(driver, tags):
     elements = []
     for tag in tags:
         elements.extend(driver.find_elements(By.TAG_NAME, tag))
     return elements
 
+
 def collect_shadow_dom_elements(driver, tags):
     # Add implementation to collect elements from shadow DOMs if necessary
     return []
+
 
 def collect_clickable_elements(driver):
     tags = ["button", "input", "a"]
     elements = find_elements(driver, tags)
     elements.extend(collect_shadow_dom_elements(driver, tags))
     return elements
+
 
 # JavaScript to detect event listeners and visible text, including inline handlers
 script = """
@@ -55,8 +75,10 @@ elements.forEach(function(element) {
 return result;
 """
 
+
 def get_elements_info(driver, elements):
     return driver.execute_script(script, elements)
+
 
 def click_element(driver, element):
     try:
@@ -73,7 +95,7 @@ def click_element(driver, element):
             element.click()
             # Restore obstructing elements
             driver.execute_script("document.querySelector('header').style.display = 'block';")
-        
+
         time.sleep(5)  # Wait for navigation to complete
         return True
     except (StaleElementReferenceException, ElementNotInteractableException, NoSuchElementException) as e:
@@ -85,7 +107,13 @@ def click_element(driver, element):
 
     return False
 
-def interact_with_page(driver):
+
+@tool("buttons", return_direct=False)
+def buttons() -> str:
+    """This function will return the string of all buttons in a website, call this function directly without arguments."""
+    driver = webdriver.Chrome()
+    url = 'https://www.apple.com'
+    driver.get(url)
     scroll_and_load(driver, wait_time=4)
     clickable_elements = collect_clickable_elements(driver)
     elements_info = get_elements_info(driver, clickable_elements)
@@ -103,44 +131,62 @@ def interact_with_page(driver):
             unique_clickable_elements.append(element)
 
     # Display clickable elements and ask the user to select one
-    print("Available clickable elements:")
-    for index, element_info in enumerate(unique_elements_info):
-        print(f"{index}: {element_info['visibleText']} (Tag: {element_info['tagName']})")
+    print("Buttons Returned")
+    return "\n".join(["--".join([str(value) for value in element_info.values()]) for element_info in unique_elements_info])
 
-    selected_index = int(input("Enter the index of the element you want to click: "))
 
-    # Click the selected element and handle special cases
-    if 0 <= selected_index < len(unique_clickable_elements):
-        element_to_click = unique_clickable_elements[selected_index]
-        visible_text = unique_elements_info[selected_index]['visibleText']
-        if click_element(driver, element_to_click):
-            print(f"Clicked on the element: {visible_text}")
-        else:
-            print("Failed to click the element.")
-        
-        # After clicking, prompt to close or continue
-        close_browser = input("Do you want to close the browser? (yes/no): ").strip().lower()
-        if close_browser == 'yes':
-            driver.quit()
-            return False
-        else:
-            return True
-    else:
-        print("Invalid selection.")
-        return True
+tools = [buttons]
+tool_executor = ToolExecutor(tools)
 
-# Main interaction loop
-start_time = time.time()
-driver = webdriver.Chrome()
-url = 'https://www.myntra.com'
-driver.get(url)
+# We will set streaming=True so that we can stream tokens
+# See the streaming section for more information on this.
+model = ChatOpenAI(temperature=0, streaming=True)
+model = model.bind_tools(tools)
 
-while interact_with_page(driver):
-    pass
 
-# Close the WebDriver
-driver.quit()
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], operator.add]
 
-end_time = time.time()
-print("Total time taken:", end_time - start_time)
+
+def call_model(state):
+    messages = state["messages"]
+    response = model.invoke(messages)
+    # We return a list, because this will get added to the existing list
+    return {"messages": messages + [response]}
+
+
+# Define the function to execute tools
+def call_tool(state):
+    messages = state["messages"]
+    # Based on the continue condition
+    # we know the last message involves a function call
+    last_message = messages[-1]
+    # We construct a ToolInvocation from the function_call
+    tool_call = buttons
+    action = ToolInvocation(
+        tool=tool_call.name,
+        tool_input={}
+    )
+    # We call the tool_executor and get back a response
+    response = tool_executor.invoke(action)
+    # We use the response to create a FunctionMessage
+    function_message = ToolMessage(
+        content=str(response), name=action.tool, tool_call_id="placeholder_id"
+    )
+    # We return a list, because this will get added to the existing list
+    return {"messages": messages + [function_message]}
+
+
+workflow = StateGraph(AgentState)
+workflow.add_node("agent", call_model)
+workflow.add_node("action", call_tool)
+workflow.set_entry_point("agent")
+workflow.add_edge("action", "agent")
+workflow.add_edge("agent", "action")
+app = workflow.compile()
+
+inputs = {"messages": [HumanMessage(content="use your functions and at least once and tell me what they do")]}
+result = app.invoke(inputs)
+
+print(result)
 
