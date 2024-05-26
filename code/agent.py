@@ -109,10 +109,8 @@ def click_element(driver, element):
 
 
 @tool("buttons", return_direct=False)
-def buttons() -> str:
-    """This function will return the string of all buttons in a website, call this function directly without arguments."""
+def buttons(url: str) -> str:
     driver = webdriver.Chrome()
-    url = 'https://www.apple.com'
     driver.get(url)
     scroll_and_load(driver, wait_time=4)
     clickable_elements = collect_clickable_elements(driver)
@@ -130,12 +128,14 @@ def buttons() -> str:
             unique_elements_info.append(element_info)
             unique_clickable_elements.append(element)
 
-    # Display clickable elements and ask the user to select one
-    print("Buttons Returned")
-    return "\n".join(["--".join([str(value) for value in element_info.values()]) for element_info in unique_elements_info])
+    # Collect visible text of interest for final output
+    visible_texts = [element_info['visibleText'] for element_info in unique_elements_info if element_info['visibleText']]
 
+    driver.quit()
+    
+    return ",".join(visible_texts
 
-tools = [buttons]
+tools = [buttons()]
 tool_executor = ToolExecutor(tools)
 
 # We will set streaming=True so that we can stream tokens
