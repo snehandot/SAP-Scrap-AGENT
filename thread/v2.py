@@ -3,12 +3,13 @@ import threading
 from queue import Queue
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from multiprocessing import Process, Queue as MPQueue
 
 # URLs to scrape
 urls = [
-    "https://flipkart.com",
-    "https://ajio.com",
-    "https://myntra.com"
+    "https://www.flipkart.com",
+    "https://www.ajio.com",
+    "https://www.myntra.com"
 
 ]
 
@@ -59,7 +60,6 @@ def scrape_buttons(url, queue, unique_id):
     try:
         driver = webdriver.Chrome()
         driver.get(url)
-        print("Loaded")
         scroll_and_load(driver, wait_time=4)
         clickable_elements = collect_clickable_elements(driver)
         elements_info = get_elements_info(driver, clickable_elements)
@@ -82,20 +82,40 @@ def scrape_buttons(url, queue, unique_id):
     except Exception as e:
         print(f"Error scraping {url}: {e}")
 
-# Create and start threads for each WebDriver instance
-threads = []
-for i, url in enumerate(urls):
-    unique_id = f"driver_{i}"
-    thread = threading.Thread(target=scrape_buttons, args=(url, button_queue, unique_id))
-    threads.append(thread)
-    thread.start()
+def process_buttons(mp_queue):
+    while True:
+        if not mp_queue.empty():
+            unique_id, buttons = mp_queue.get()
+            print(f"Processing buttons for WebDriver Instance: {unique_id}, Buttons are received")
+            # Placeholder for LLM processing (replace with actual LLM call)
+            result = None  # Simulate processing
+            print(f"Processed result for {unique_id}: {result}")
 
-# Wait for all threads to complete
-for thread in threads:
-    thread.join()
+# Main function to start WebDriver threads and the LLM process
+def main():
+    # Multiprocessing queue to communicate with LLM process
+    mp_queue = MPQueue()
 
-# Print the contents of the queue
-while not button_queue.empty():
-    unique_id, buttons = button_queue.get()
-    print(f"WebDriver Instance: {unique_id}, Buttons: {buttons}")
+    # Create and start threads for each WebDriver instance
+    threads = []
+    for i, url in enumerate(urls):
+        unique_id = f"driver_{i}"
+        thread = threading.Thread(target=scrape_buttons, args=(url, mp_queue, unique_id))
+        threads.append(thread)
+        thread.start()
+
+    # Start the LLM processing function in a separate process
+    llm_process = Process(target=process_buttons, args=(mp_queue,))
+    llm_process.start()
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+
+    # Ensure LLM process is terminated after processing
+    llm_process.terminate()
+    llm_process.join()
+
+if __name__ == "__main__":
+    main()
 
