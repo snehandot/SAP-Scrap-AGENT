@@ -151,10 +151,8 @@ def click(button_name: str) -> bool:
 
 
 
-@tool("buttons", return_direct=False)
-def buttons(url: str) -> str:
-    """Use to click any button on a website, input the selector and type of selector (default is XPath)."""
 
+def buttons(url: str) -> str:
     driver.get(url)
     scroll_and_load(driver, wait_time=4)
     clickable_elements = collect_clickable_elements(driver)
@@ -181,7 +179,7 @@ def buttons(url: str) -> str:
 
 
 
-tools = [buttons,click]
+tools = [click]
 tool_executor = ToolExecutor(tools)
 
 # We will set streaming=True so that we can stream tokens
@@ -197,52 +195,13 @@ agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
 
-
-def call_model(state):
-    messages = state["messages"]
-    response = model.invoke(messages)
-    # We return a list, because this will get added to the existing list
-    return {"messages": messages + [response]}
-
-
-# Define the function to execute tools
-def call_tool(state):
-    messages = state["messages"]
-    # Based on the continue condition
-    # we know the last message involves a function call
-    last_message = messages[-1]
-    # We construct a ToolInvocation from the function_call
-    tool_call = buttons
-    action = ToolInvocation(
-        tool=tool_call.name,
-        tool_input={}
-    )
-    # We call the tool_executor and get back a response
-    response = tool_executor.invoke(action)
-    # We use the response to create a FunctionMessage
-    function_message = ToolMessage(
-        content=str(response), name=action.tool, tool_call_id="placeholder_id"
-    )
-    # We return a list, because this will get added to the existing list
-    return {"messages": messages + [function_message]}
-
-
-workflow = StateGraph(AgentState)
-workflow.add_node("agent", call_model)
-workflow.add_node("action", call_tool)
-workflow.set_entry_point("agent")
-workflow.add_edge("action", "agent")
-workflow.add_edge("agent", "action")
-app = workflow.compile()
-
-inputs = {"messages": [HumanMessage(content="navigate to the apple website and click on the iphone section")]}
-#result = app.invoke(inputs)
 driver = webdriver.Chrome()
 website=input("Tell website name:")
 product=input("Product name")
+init_buttons=buttons(website)
 agent_executor.invoke(
     {
-        "input":f" continously click only the buttons in latest web page . dont assume web links ,go to the {website} and navigate around and find {product}"   }
+        "input":f" You are product search engine , Click the buttons shown to you of the website {website},Buttons:{init_buttons} with the click tool , navigate around and find {product} and its price"   }
 )
 
 #Sprint(result)
