@@ -61,7 +61,7 @@ def click_element(driver, element):
     try:
         driver.execute_script("arguments[0].scrollIntoView(true);", element)
         time.sleep(1)
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(element))
+        #WebDriverWait(driver, 10).until(EC.element_to_be_clickable(element))
 
         try:
             element.click()
@@ -79,8 +79,8 @@ def click_element(driver, element):
         print(f"Error interacting with the element: {e}")
     except JavascriptException as e:
         print(f"JavascriptException: {str(e)}")
-    except Exception as e:
-        print(f"Exception: {str(e)}")
+   # except Exception as e:
+    #    print(f"Exception: {str(e)}")
 
     return False
 
@@ -134,7 +134,7 @@ def interact_with_page():
 # Main interaction loop
 start_time = time.time()
 driver = webdriver.Chrome()
-url = 'https://www.reliancedigital.in/'
+url = 'https://www.flipkart.com'
 driver.get(url)
 
 while interact_with_page():
