@@ -21,16 +21,8 @@ from langchain_core.messages import ToolMessage
 from langgraph.graph import StateGraph
 from langchain_core.tools import tool
 
-
-
 from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain_openai import ChatOpenAI
 from langchain import hub
-from langchain_core.tools import tool
-
-from langchain import hub
-from langchain_core.tools import tool
-
 
 
 # Environment setup
@@ -146,7 +138,7 @@ def click(button_name: str) -> bool:
 
 
 
-# Example usage
+
 
 
 
@@ -183,9 +175,9 @@ tools = [click]
 tool_executor = ToolExecutor(tools)
 
 # We will set streaming=True so that we can stream tokens
-# See the streaming section for more information on this.
+
 model = ChatOpenAI(model="gpt-3.5-turbo",temperature=0, streaming=True)
-#model = model.bind_tools(tools)
+
 prompt = hub.pull("hwchase17/openai-tools-agent")
 
 agent = create_openai_tools_agent(model, tools, prompt)
@@ -204,4 +196,4 @@ agent_executor.invoke(
         "input":f" You are product search engine , Click the buttons shown to you of the website {website},Buttons:{init_buttons} with the click tool , navigate around and find {product} and its price"   }
 )
 
-#Sprint(result)
+
