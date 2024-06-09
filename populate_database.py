@@ -29,7 +29,11 @@ def main():
 
 
 def load_documents():
+<<<<<<< HEAD
     document_loader = PyPDFDirectoryLoader("/Users/alferix/Documents/sap/pdfs")
+=======
+    document_loader = PyPDFDirectoryLoader("/Users/sanjaypalanisami/RAG_locally/pdfs")
+>>>>>>> 1bcfcabf702e9206e0db3c6f9b749118135c2df9
     return document_loader.load()
 
 
