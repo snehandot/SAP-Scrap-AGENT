@@ -88,7 +88,6 @@ def get_elements_info(driver, elements):
     return driver.execute_script(script, elements)
 
 def scrape_buttons(url, queue, unique_id, driver_instances):
-    try:
         driver = webdriver.Chrome()
         driver_instances[unique_id] = driver
         driver.get(url)
@@ -110,8 +109,7 @@ def scrape_buttons(url, queue, unique_id, driver_instances):
         
         # Put the collected button values into the queue
         queue.put((unique_id, visible_texts))
-    except Exception as e:
-        print(f"Error scraping {url}: {e}")
+
 
 # Shared variable for the current WebDriver
 current_driver = None

@@ -274,13 +274,13 @@ Answer the question based on the above context: {question}
 """
 
 def main():
-    # Create CLI.
-    parser = argparse.ArgumentParser()
-    parser.add_argument("query_text", type=str, help="The query text.")
-    args = parser.parse_args()
-    
+    # # Create CLI.
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("query_text", type=str, help="The query text.")
+    # args = parser.parse_args()
+    query_text="who tf is rocky"
     # Pass the command line argument to the function.
-    query_rag(args.query_text)
+    query_rag(query_text)
 
 def query_rag(query_text: str):
     # Prepare the DB.
@@ -301,7 +301,7 @@ def query_rag(query_text: str):
     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
     
     # Make sure the model path is correct for your system!
-    model_path = "/Users/sanjaypalanisami/5AP/Phi-3-mini-4k-instruct-function-calling_Q6_K.gguf"
+    model_path = "/Users/alferix/Documents/models/phi-3-mini-128k-instruct_function.q8_0.gguf"
     llm = LlamaCpp(
         model_path=model_path,
         n_gpu_layers=n_gpu_layers,
