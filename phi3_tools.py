@@ -278,7 +278,7 @@ def main():
     # parser = argparse.ArgumentParser()
     # parser.add_argument("query_text", type=str, help="The query text.")
     # args = parser.parse_args()
-    query_text="who tf is rocky"
+    query_text="write me an 1000 word essay on love"
     # Pass the command line argument to the function.
     query_rag(query_text)
 
@@ -296,19 +296,22 @@ def query_rag(query_text: str):
     print(prompt)
 
     # Set up the LlamaCpp model
-    n_gpu_layers = -1
+    n_gpu_layers = 1000
     n_batch = 2000
     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
     
     # Make sure the model path is correct for your system!
-    model_path = "/Users/alferix/Documents/models/phi-3-mini-128k-instruct_function.q8_0.gguf"
+    model_path = "//Users/alferix/Documents/models/phi-3-mini-128k-instruct_function.q8_0.gguf"
     llm = LlamaCpp(
         model_path=model_path,
         n_gpu_layers=n_gpu_layers,
         n_batch=n_batch,
+        n_threads=10,
         n_ctx = 2048,
         callback_manager=callback_manager,
         verbose=True,  # Verbose is required to pass to the callback manager
+        low_memory=False,
+        use_mmap=False
     )
     
     # Generate a response using the LlamaCpp model
@@ -316,21 +319,7 @@ def query_rag(query_text: str):
 
     sources = [doc.metadata.get("id", None) for doc, _score in results]
     formatted_response = f"Response: {response_text}\nSources: {sources}"
-    print(formatted_response)
-
-    # Integrate the search tool
-    integrate_search_tool(query_text)
-
-    return response_text
-
-def integrate_search_tool(query_text: str):
-    model_id = "mzbac/Phi-3-mini-4k-instruct-function-calling"
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
+    #print(formatted_response)
 
     tool = {
         "name": "search_web",
@@ -354,6 +343,49 @@ def integrate_search_tool(query_text: str):
             "content": f"You are a helpful assistant with access to the following functions. Use them if required - {str(tool)}",
         },
         {"role": "user", "content": f"Perform a web search for the following query: {query_text}"},
+    ]
+
+    # Integrate the search tool
+    # response_text = llm.invoke(messages)
+
+    # sources = [doc.metadata.get("id", None) for doc, _score in results]
+    # formatted_response = f"Response: {response_text}\nSources: {sources}"
+    # print(formatted_response)
+    #integrate_search_tool(llm,query_text)
+
+    return response_text
+
+def integrate_search_tool(model,query_text: str):
+    # model_id = "mzbac/Phi-3-mini-4k-instruct-function-calling"
+    # tokenizer = AutoTokenizer.from_pretrained(model_id)
+    # model = AutoModelForCausalLM.from_pretrained(
+    #     model_id,
+    #     torch_dtype=torch.bfloat16,
+    #     device_map="auto",
+    # )
+
+    tool = {
+        "name": "search_web",
+        "description": "Perform a web search for a given search terms.",
+        "parameter": {
+            "type": "object",
+            "properties": {
+                "search_terms": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "The search queries for which the search is performed.",
+                    "required": True,
+                }
+            },
+        },
+    }
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"You are a helpful assistant with access to the following functions. Use them if required - {str(tool)}",
+        },
+        {"role": "user", "content": f"Perform a web search for the following query: "},
     ]
 
     input_ids = tokenizer.apply_chat_template(
